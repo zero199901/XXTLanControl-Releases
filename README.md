@@ -6,7 +6,11 @@ This repository is the public release channel for **XXTLanControl**.
 本仓库用于发布各版本安装包、Docker 镜像归档与部署说明，不包含完整源码。  
 It provides release binaries, Docker image archives, and deployment docs, but not the full source code.
 
-![screenshot-002.png](site/public/screenshot-002.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="site/public/screenshot-002-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="site/public/screenshot-002.png">
+  <img alt="XXTLanControl 界面截图" src="site/public/screenshot-002.png">
+</picture>
 
 ## 下载地址 / Downloads
 
