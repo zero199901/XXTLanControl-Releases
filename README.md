@@ -121,6 +121,8 @@ docker compose -f docker-compose-custom.yml up -d
 - `HTTP_PORT`（默认 `46990`）
 - `UDP_LISTEN_PORT`（默认 `31500`）
 - `ADVERTISE_API_URL`（桥接网络建议设置，例如 `http://192.168.1.100:46990`）
+- `XXTLANCONTROL_DEVELOPMENT_PROJECTS_ENABLED`（默认 `true`）
+- `XXTLANCONTROL_DEVELOPMENT_PROJECTS_DIR`（默认容器内 `/app/data/projects`）
 
 #### 2.4 离线部署（tar 包）
 
@@ -249,6 +251,8 @@ Optional variables:
 - `HTTP_PORT` (default `46990`)
 - `UDP_LISTEN_PORT` (default `31500`)
 - `ADVERTISE_API_URL` (recommended in bridge mode, e.g. `http://192.168.1.100:46990`)
+- `XXTLANCONTROL_DEVELOPMENT_PROJECTS_ENABLED` (default `true`)
+- `XXTLANCONTROL_DEVELOPMENT_PROJECTS_DIR` (defaults to `/app/data/projects` inside the container)
 
 #### 2.4 Offline Deployment (tar archive)
 
