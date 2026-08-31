@@ -1,7 +1,20 @@
 ---
 import '../styles/global.css';
 
-const { title, description, lang = 'zh-CN' } = Astro.props;
+interface AlternateLink {
+  lang: string;
+  href: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  lang?: string;
+  alternates?: AlternateLink[];
+}
+
+const { title, description, lang = 'zh-CN', alternates = [] } = Astro.props;
+const absoluteURL = (href: string) => new URL(href, Astro.site);
 ---
 
 <!doctype html>
@@ -11,6 +24,12 @@ const { title, description, lang = 'zh-CN' } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {alternates.map((alternate) => (
+      <link rel="alternate" hreflang={alternate.lang} href={absoluteURL(alternate.href)} />
+    ))}
+    {alternates.length > 0 && (
+      <link rel="alternate" hreflang="x-default" href={absoluteURL(alternates[0].href)} />
+    )}
   </head>
   <body class="min-h-full font-sans antialiased">
     <slot />
