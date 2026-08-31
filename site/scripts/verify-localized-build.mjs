@@ -19,6 +19,7 @@ const dist = new URL('../dist/', import.meta.url);
 const publicDir = new URL('../public/', import.meta.url);
 const rawBase = process.env.BASE_PATH?.trim() || '/';
 const base = rawBase === '/' ? '/' : `/${rawBase.replace(/^\/+|\/+$/g, '')}/`;
+const languagePreferenceKey = 'xxtouch.release.locale.v1';
 const errors = [];
 
 for (const entry of locales) {
@@ -49,18 +50,35 @@ for (const entry of locales) {
     if (!html.includes(`hreflang="${alternate.locale}"`)) {
       errors.push(`${pagePath}: missing hreflang ${alternate.locale}`);
     }
+    if (!html.includes(`data-language-locale="${alternate.locale}"`)) {
+      errors.push(`${pagePath}: missing persisted language choice ${alternate.locale}`);
+    }
   }
   if (!html.includes('hreflang="x-default"')) {
     errors.push(`${pagePath}: missing hreflang x-default`);
   }
 
   const currentLanguageHref = entry.slug ? `${base}${entry.slug}/` : base;
-  const currentLanguageLink = `<a href="${currentLanguageHref}" class="language-menu-active" lang="${entry.locale}" hreflang="${entry.locale}" aria-current="page">`;
+  const currentLanguageLink = `<a href="${currentLanguageHref}" class="language-menu-active" lang="${entry.locale}" hreflang="${entry.locale}" aria-current="page" data-language-locale="${entry.locale}">`;
   if (!html.includes('<nav class="language-menu"') || !html.includes('<summary class="language-menu-trigger">')) {
     errors.push(`${pagePath}: missing compact language menu`);
   }
+  if (!html.includes(`data-language-preference-key="${languagePreferenceKey}"`)) {
+    errors.push(`${pagePath}: missing language preference storage key`);
+  }
   if (!html.includes(currentLanguageLink)) {
     errors.push(`${pagePath}: missing active language link for ${entry.locale}`);
+  }
+
+  const hasLanguageRedirect = html.includes('data-language-redirect');
+  if (entry.locale === 'zh-CN') {
+    for (const expected of ['navigator.languages', 'window.location.replace', 'en-US']) {
+      if (!hasLanguageRedirect || !html.includes(expected)) {
+        errors.push(`${pagePath}: missing root language negotiation ${expected}`);
+      }
+    }
+  } else if (hasLanguageRedirect) {
+    errors.push(`${pagePath}: explicit locale route must not auto-redirect`);
   }
 }
 

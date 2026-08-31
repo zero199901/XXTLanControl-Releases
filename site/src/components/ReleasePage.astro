@@ -12,9 +12,10 @@ import {
 
 interface Props {
   locale?: SiteLocale;
+  detectLocale?: boolean;
 }
 
-const { locale = 'zh-CN' } = Astro.props;
+const { locale = 'zh-CN', detectLocale = false } = Astro.props;
 const text = releaseCopy[locale];
 
 const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
@@ -23,6 +24,10 @@ const alternates = siteLocaleOrder.map((alternateLocale) => ({
   lang: alternateLocale,
   href: withBase(sitePathForLocale(alternateLocale))
 }));
+const languagePreferenceKey = 'xxtouch.release.locale.v1';
+const localePaths = Object.fromEntries(
+  siteLocaleOrder.map((alternateLocale) => [alternateLocale, withBase(sitePathForLocale(alternateLocale))])
+);
 
 const releaseVersion = latest.version || '-';
 const assets = Array.isArray(latest.assets) ? latest.assets : [];
@@ -45,10 +50,97 @@ const formatBytes = (value) => {
 ---
 
 <BaseLayout title={text.pageTitle} description={text.pageDescription} lang={locale} alternates={alternates}>
+  {detectLocale && (
+    <script is:inline data-language-redirect define:vars={{ languagePreferenceKey, localePaths }}>
+      (() => {
+        const supportedLocales = Object.keys(localePaths);
+        const supportedLocaleSet = new Set(supportedLocales);
+        let selectedLocale;
+
+        try {
+          const storedLocale = window.localStorage.getItem(languagePreferenceKey);
+          if (storedLocale && supportedLocaleSet.has(storedLocale)) {
+            selectedLocale = storedLocale;
+          } else if (storedLocale) {
+            window.localStorage.removeItem(languagePreferenceKey);
+          }
+        } catch {
+          // 存储不可用时仍应继续按浏览器语言选择。
+        }
+
+        const matchBrowserLocale = (language) => {
+          const normalized = typeof language === 'string'
+            ? language.trim().replace(/_/g, '-').toLowerCase()
+            : '';
+          if (!normalized) {
+            return undefined;
+          }
+
+          const parts = normalized.split('-');
+          const primaryLanguage = parts[0];
+          if (primaryLanguage === 'zh') {
+            if (parts.includes('hans')) {
+              return supportedLocaleSet.has('zh-CN') ? 'zh-CN' : undefined;
+            }
+            if (parts.includes('hant') || parts.some((part) => ['tw', 'hk', 'mo'].includes(part))) {
+              return supportedLocaleSet.has('zh-TW') ? 'zh-TW' : undefined;
+            }
+            return supportedLocaleSet.has('zh-CN') ? 'zh-CN' : undefined;
+          }
+
+          const exactLocale = supportedLocales.find((candidate) => candidate.toLowerCase() === normalized);
+          return exactLocale || supportedLocales.find(
+            (candidate) => candidate.toLowerCase().split('-')[0] === primaryLanguage
+          );
+        };
+
+        if (!selectedLocale) {
+          const browserLanguages = [];
+          try {
+            for (const language of navigator.languages || []) {
+              if (typeof language === 'string' && !browserLanguages.includes(language)) {
+                browserLanguages.push(language);
+              }
+            }
+            if (typeof navigator.language === 'string' && !browserLanguages.includes(navigator.language)) {
+              browserLanguages.push(navigator.language);
+            }
+          } catch {
+            // 浏览器未提供语言信息时使用英语兜底。
+          }
+
+          for (const language of browserLanguages) {
+            selectedLocale = matchBrowserLocale(language);
+            if (selectedLocale) {
+              break;
+            }
+          }
+        }
+
+        selectedLocale ||= supportedLocaleSet.has('en-US') ? 'en-US' : supportedLocales[0];
+        const targetPath = localePaths[selectedLocale];
+        if (!targetPath) {
+          return;
+        }
+
+        const targetURL = new URL(targetPath, window.location.origin);
+        targetURL.search = window.location.search;
+        targetURL.hash = window.location.hash;
+        const normalizePathname = (pathname) => pathname.endsWith('/') ? pathname : `${pathname}/`;
+        if (normalizePathname(targetURL.pathname) !== normalizePathname(window.location.pathname)) {
+          window.location.replace(`${targetURL.pathname}${targetURL.search}${targetURL.hash}`);
+        }
+      })();
+    </script>
+  )}
   <div class="page-atmosphere" aria-hidden="true"></div>
   <main class="relative mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 lg:px-8 lg:pt-10">
     <header class="mb-6 flex justify-end">
-      <nav class="language-menu" aria-label={text.languageNavLabel}>
+      <nav
+        class="language-menu"
+        aria-label={text.languageNavLabel}
+        data-language-preference-key={languagePreferenceKey}
+      >
         <details>
           <summary class="language-menu-trigger">
             <svg class="language-menu-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -71,6 +163,7 @@ const formatBytes = (value) => {
                     lang={alternateLocale}
                     hreflang={alternateLocale}
                     aria-current={alternateLocale === locale ? 'page' : undefined}
+                    data-language-locale={alternateLocale}
                   >
                     {siteLocaleMeta[alternateLocale].nativeLabel}
                   </a>
@@ -226,6 +319,24 @@ const formatBytes = (value) => {
   </main>
 
   <script>
+    const languageMenu = document.querySelector('[data-language-preference-key]');
+    const languagePreferenceKey = languageMenu?.getAttribute('data-language-preference-key');
+    if (languageMenu && languagePreferenceKey) {
+      for (const link of languageMenu.querySelectorAll('[data-language-locale]')) {
+        link.addEventListener('click', () => {
+          const selectedLocale = link.getAttribute('data-language-locale');
+          if (!selectedLocale) {
+            return;
+          }
+          try {
+            window.localStorage.setItem(languagePreferenceKey, selectedLocale);
+          } catch {
+            // 即使无法保存偏好，普通链接仍能正常切换语言。
+          }
+        });
+      }
+    }
+
     const copyButtons = Array.from(document.querySelectorAll('[data-copy]'));
     for (const button of copyButtons) {
       button.addEventListener('click', async () => {
